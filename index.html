@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MBU FC Roster</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.577.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <section id="viewer-mode" class="minimal-view" aria-labelledby="when-label">
+      <button id="management-button" class="manage-action" type="button">Manage</button>
+      <div class="schedule-sheet">
+        <p class="club-name">MBU FC</p>
+        <section class="when-block">
+          <h1 id="when-label" class="viewer-label viewer-label-lg">WHEN:</h1>
+          <div class="when-row">
+            <p id="schedule-display" class="schedule-value" aria-live="polite"></p>
+            <span id="days-left" class="days-left-badge hidden"></span>
+          </div>
+        </section>
+        <section aria-labelledby="players-label">
+          <div class="players-header">
+            <h2 id="players-label" class="viewer-label viewer-label-md">PLAYERS:</h2>
+            <div class="view-toggle" role="group" aria-label="Player view">
+              <button type="button" id="roster-view-button" class="toggle-button" aria-pressed="false">Full roster</button>
+              <button type="button" id="teams-view-button" class="toggle-button" aria-pressed="true">Teams</button>
+            </div>
+          </div>
+          <div id="full-roster-columns" class="player-columns">
+            <section class="player-section" aria-labelledby="played-label">
+              <h3 id="played-label" class="section-heading">
+                <span>PLAYED</span>
+                <span id="played-count" class="count-badge count-badge-played" aria-label="0 players">0</span>
+              </h3>
+              <div id="played-players" class="player-list-holder" aria-live="polite"></div>
+              <p id="played-empty" class="empty-player-list hidden">—</p>
+            </section>
+            <section class="player-section" aria-labelledby="pending-label">
+              <h3 id="pending-label" class="section-heading">
+                <span>PENDING</span>
+                <span id="pending-count" class="count-badge count-badge-pending" aria-label="0 players">0</span>
+              </h3>
+              <div id="pending-players" class="player-list-holder" aria-live="polite"></div>
+              <p id="pending-empty" class="empty-player-list hidden">—</p>
+            </section>
+            <section class="player-section" aria-labelledby="invited-label">
+              <h3 id="invited-label" class="section-heading">
+                <span>INVITED</span>
+                <span id="invited-count" class="count-badge count-badge-invited" aria-label="0 players">0</span>
+              </h3>
+              <div id="invited-players" class="player-list-holder" aria-live="polite"></div>
+              <p id="invited-empty" class="empty-player-list hidden">—</p>
+            </section>
+          </div>
+          <div id="team-player-columns" class="player-columns hidden">
+            <section class="player-section" aria-labelledby="red-label">
+              <h3 id="red-label" class="section-heading">
+                <span>RED</span>
+                <span id="red-count" class="count-badge count-badge-red" aria-label="0 players">0</span>
+              </h3>
+              <div id="red-players" class="player-list-holder" aria-live="polite"></div>
+              <p id="red-empty" class="empty-player-list hidden">—</p>
+            </section>
+            <section class="player-section" aria-labelledby="blue-label">
+              <h3 id="blue-label" class="section-heading">
+                <span>BLUE</span>
+                <span id="blue-count" class="count-badge count-badge-blue" aria-label="0 players">0</span>
+              </h3>
+              <div id="blue-players" class="player-list-holder" aria-live="polite"></div>
+              <p id="blue-empty" class="empty-player-list hidden">—</p>
+            </section>
+            <section class="player-section" aria-labelledby="extra-label">
+              <h3 id="extra-label" class="section-heading">
+                <span>EXTRA</span>
+                <span id="extra-count" class="count-badge count-badge-extra" aria-label="0 players">0</span>
+              </h3>
+              <div id="extra-players" class="player-list-holder" aria-live="polite"></div>
+              <p id="extra-empty" class="empty-player-list hidden">—</p>
+            </section>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="management-mode" class="management-wrap hidden" aria-labelledby="management-title">
+      <header class="management-header">
+        <div>
+          <p class="management-kicker">Management</p>
+          <h1 id="management-title" class="management-title">MBU FC Roster</h1>
+        </div>
+        <div class="management-header-actions">
+          <button id="logout-button" class="quiet-button" type="button">Log out</button>
+          <button id="return-viewer-button" class="quiet-button" type="button">Return to viewer</button>
+        </div>
+      </header>
+
+      <div id="status-message" class="status-message hidden" role="status" aria-live="polite"></div>
+
+      <section class="management-section" aria-labelledby="schedule-form-heading">
+        <h2 id="schedule-form-heading" class="section-title">Schedule</h2>
+        <form id="schedule-form" class="schedule-form">
+          <div class="schedule-form-fields">
+            <div class="picker-group">
+              <label class="field-label" for="schedule-date">Date</label>
+              <input id="schedule-date" class="field" type="date" required>
+            </div>
+            <div class="picker-group">
+              <span id="schedule-time-label" class="field-label">Time</span>
+              <div class="picker-row" role="group" aria-labelledby="schedule-time-label">
+                <select id="schedule-hour" class="field select-field" aria-label="Hour"></select>
+                <select id="schedule-ampm" class="field select-field" aria-label="AM or PM"></select>
+              </div>
+            </div>
+          </div>
+          <div class="form-submit-row">
+            <button id="save-schedule-button" class="accent-button" type="submit">Save schedule</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="management-section" aria-labelledby="players-heading">
+        <h2 id="players-heading" class="section-title">Players &amp; assignments</h2>
+        <p class="section-subtitle">Drag a player card into a team column to assign them.</p>
+        <form id="player-form" class="player-form">
+          <div class="player-form-field">
+            <label class="visually-hidden" for="player-name">Player name</label>
+            <input id="player-name" class="field" type="text" required placeholder="Player name">
+          </div>
+          <button id="save-player-button" class="accent-button" type="submit">Add player</button>
+          <button id="cancel-player-edit" class="quiet-button hidden" type="button">Cancel</button>
+        </form>
+        <div id="assignment-board" class="assignment-columns"></div>
+        <p id="players-empty" class="empty-state hidden">No players yet.</p>
+      </section>
+    </section>
+  </main>
+
+  <template id="team-card-template">
+    <article class="panel">
+      <div class="team-card-header">
+        <h3 class="team-card-name"></h3>
+        <span class="team-card-count count-badge" aria-label="0 players">0</span>
+      </div>
+      <div class="drop-zone" tabindex="0"></div>
+    </article>
+  </template>
+
+  <template id="assignment-player-template">
+    <div class="player-chip" draggable="true">
+      <i data-lucide="grip-vertical" width="15" height="15" class="chip-grip"></i>
+      <span class="chip-name"></span>
+      <label class="visually-hidden">Status</label>
+      <select class="status-select" aria-label="Status"></select>
+      <button type="button" class="chip-icon-button chip-edit" aria-label="Edit player"><i data-lucide="pencil" width="14" height="14"></i></button>
+      <button type="button" class="chip-icon-button chip-delete" aria-label="Delete player"><i data-lucide="trash-2" width="14" height="14"></i></button>
+    </div>
+  </template>
+
+  <div id="password-modal" class="modal-overlay hidden">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
+      <h2 id="password-modal-title" class="section-title">Sign in to manage</h2>
+      <p class="section-subtitle">Sign in with your coach account to edit the schedule and roster.</p>
+      <form id="password-form" class="password-form">
+        <label class="field-label" for="manage-email">Email</label>
+        <input id="manage-email" class="field" type="email" placeholder="Email" required autocomplete="username">
+        <label class="field-label" for="manage-password">Password</label>
+        <input id="manage-password" class="field" type="password" placeholder="Password" required autocomplete="current-password">
+        <p id="password-error" class="field-error hidden">Incorrect email or password.</p>
+        <div class="modal-actions">
+          <button type="button" id="password-cancel" class="quiet-button">Cancel</button>
+          <button type="submit" class="accent-button">Sign in</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="store.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
