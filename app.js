@@ -16,7 +16,7 @@ const teams = () => {
 const schedules = () => byType("schedule").sort((a, b) => (a.schedule_date + a.schedule_time).localeCompare(b.schedule_date + b.schedule_time));
 
 const STATUS_ORDER = ["played", "pending", "invited"];
-const STATUS_LABELS = { played: "Played", pending: "Pending", invited: "Invited" };
+const STATUS_LABELS = { played: "Confirmed", pending: "Pending", invited: "Invited" };
 
 function canonicalPlayerStatus(value) {
   const normalized = String(value || "").trim().toLowerCase();
