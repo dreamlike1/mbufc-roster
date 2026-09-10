@@ -151,6 +151,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-dot.status-played { background: #22c55e; }
 .group-dot.status-pending { background: #eab308; }
 .group-dot.status-invited { background: #94a3b8; }
+.group-dot.status-out { background: #64748b; }
 
 .player-columns {
   display: grid;
@@ -160,6 +161,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 @media (min-width: 768px) {
   .player-columns { grid-template-columns: repeat(3, 1fr); }
+  .player-columns.status-columns { grid-template-columns: repeat(4, 1fr); }
 }
 
 .player-section {
@@ -189,6 +191,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   font-weight: 500;
   color: var(--ink);
 }
+
+.player-name.player-out .player-name-text { color: var(--muted); text-decoration: line-through; }
 
 .group-dot {
   width: .52rem;
@@ -227,6 +231,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .count-badge-played { background: #dcf7e3; color: #15803d; }
 .count-badge-pending { background: #fef3c7; color: #92650a; }
 .count-badge-invited { background: #edf1f4; color: #64748b; }
+.count-badge-out { background: #e2e8f0; color: #475569; }
 
 .manage-action {
   position: fixed;
@@ -468,6 +473,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .status-select.status-played { border-color: #22c55e; color: #15803d; background: #eafcef; }
 .status-select.status-pending { border-color: #eab308; color: #92650a; background: #fefaea; }
 .status-select.status-invited { border-color: #94a3b8; color: #475569; background: #f1f5f9; }
+.status-select.status-out { border-color: #64748b; color: #334155; background: #e9edf2; }
 
 .chip-icon-button {
   display: inline-flex;
