@@ -127,12 +127,15 @@ function namedTeam(name) {
   return teams().find((team) => team.name.trim().toLowerCase() === name);
 }
 
-function renderPlayerColumn(holderId, emptyId, list, group) {
+function renderPlayerColumn(holderId, emptyId, list, group, options = {}) {
   const holder = $("#" + holderId);
   holder.replaceChildren();
   list.forEach((player) => {
     const item = document.createElement("p");
     item.className = "player-name";
+    if (options.markOut && canonicalPlayerStatus(player.status) === "out") {
+      item.classList.add("player-out");
+    }
     const dot = document.createElement("span");
     dot.className = "group-dot " + group;
     dot.setAttribute("aria-hidden", "true");
@@ -198,7 +201,7 @@ function renderViewer() {
   );
   renderPlayerColumn("red-players", "red-empty", redPlayers, "red");
   renderPlayerColumn("blue-players", "blue-empty", bluePlayers, "blue");
-  renderPlayerColumn("extra-players", "extra-empty", extraPlayers, "extra");
+  renderPlayerColumn("extra-players", "extra-empty", extraPlayers, "extra", { markOut: true });
   [
     ["red-count", redPlayers.length],
     ["blue-count", bluePlayers.length],
