@@ -1,6 +1,37 @@
 const state = { records: [], selectedDate: "", editingPlayerId: null, dragPlayerId: null, initialized: false, viewMode: "roster" };
 const $ = (selector) => document.querySelector(selector);
 const byType = (type) => state.records.filter((record) => record.type === type);
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  const button = $("#theme-toggle");
+  button.innerHTML = theme === "dark"
+    ? '<i data-lucide="sun" width="18" height="18"></i>'
+    : '<i data-lucide="moon" width="18" height="18"></i>';
+  lucide.createIcons();
+}
+
+function initTheme() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("mbufc_theme");
+  } catch (err) {
+    stored = null;
+  }
+  applyTheme(stored === "light" ? "light" : "dark");
+}
+
+$("#theme-toggle").addEventListener("click", () => {
+  const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  applyTheme(next);
+  try {
+    localStorage.setItem("mbufc_theme", next);
+  } catch (err) {
+    /* ignore */
+  }
+});
+
+initTheme();
 const players = () => byType("player").sort((a, b) => a.name.localeCompare(b.name));
 const teams = () => {
   const seen = new Set();
@@ -217,6 +248,7 @@ function setMode(mode) {
   const viewer = mode === "viewer";
   $("#viewer-mode").classList.toggle("hidden", !viewer);
   $("#management-mode").classList.toggle("hidden", viewer);
+  $("#management-button").classList.toggle("hidden", !viewer);
   if (viewer) renderViewer();
   else renderManagement();
 }
