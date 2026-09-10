@@ -15,8 +15,8 @@ const teams = () => {
 };
 const schedules = () => byType("schedule").sort((a, b) => (a.schedule_date + a.schedule_time).localeCompare(b.schedule_date + b.schedule_time));
 
-const STATUS_ORDER = ["played", "pending", "invited"];
-const STATUS_LABELS = { played: "Confirmed", pending: "Pending", invited: "Invited" };
+const STATUS_ORDER = ["played", "pending", "invited", "out"];
+const STATUS_LABELS = { played: "Confirmed", pending: "Pending", invited: "Invited", out: "Out" };
 
 function canonicalPlayerStatus(value) {
   const normalized = String(value || "").trim().toLowerCase();
@@ -173,13 +173,16 @@ function renderViewer() {
   const playedPlayers = allPlayers.filter((p) => canonicalPlayerStatus(p.status) === "played");
   const pendingPlayers = allPlayers.filter((p) => canonicalPlayerStatus(p.status) === "pending");
   const invitedPlayers = allPlayers.filter((p) => canonicalPlayerStatus(p.status) === "invited");
+  const outPlayers = allPlayers.filter((p) => canonicalPlayerStatus(p.status) === "out");
   renderPlayerColumn("played-players", "played-empty", playedPlayers, "status-played");
   renderPlayerColumn("pending-players", "pending-empty", pendingPlayers, "status-pending");
   renderPlayerColumn("invited-players", "invited-empty", invitedPlayers, "status-invited");
+  renderPlayerColumn("out-players", "out-empty", outPlayers, "status-out");
   [
     ["played-count", playedPlayers.length],
     ["pending-count", pendingPlayers.length],
     ["invited-count", invitedPlayers.length],
+    ["out-count", outPlayers.length],
   ].forEach(([id, count]) => {
     const badge = $("#" + id);
     badge.textContent = count;
