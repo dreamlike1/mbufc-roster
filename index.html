@@ -30,7 +30,7 @@
               <button type="button" id="teams-view-button" class="toggle-button" aria-pressed="true">Teams</button>
             </div>
           </div>
-          <div id="full-roster-columns" class="player-columns">
+          <div id="full-roster-columns" class="player-columns status-columns">
             <section class="player-section" aria-labelledby="played-label">
               <h3 id="played-label" class="section-heading">
                 <span>CONFIRMED</span>
@@ -54,6 +54,14 @@
               </h3>
               <div id="invited-players" class="player-list-holder" aria-live="polite"></div>
               <p id="invited-empty" class="empty-player-list hidden">—</p>
+            </section>
+            <section class="player-section" aria-labelledby="out-label">
+              <h3 id="out-label" class="section-heading">
+                <span>OUT</span>
+                <span id="out-count" class="count-badge count-badge-out" aria-label="0 players">0</span>
+              </h3>
+              <div id="out-players" class="player-list-holder" aria-live="polite"></div>
+              <p id="out-empty" class="empty-player-list hidden">—</p>
             </section>
           </div>
           <div id="team-player-columns" class="player-columns hidden">
