@@ -1,4 +1,4 @@
-const state = { records: [], selectedDate: "", editingPlayerId: null, dragPlayerId: null, initialized: false, viewMode: "roster" };
+const state = { records: [], selectedDate: "", editingPlayerId: null, dragPlayerId: null, initialized: false, viewMode: "teams", highlightedPlayerId: null };
 const $ = (selector) => document.querySelector(selector);
 const byType = (type) => state.records.filter((record) => record.type === type);
 
@@ -52,6 +52,15 @@ const STATUS_LABELS = { played: "Confirmed", pending: "Pending", invited: "Invit
 function canonicalPlayerStatus(value) {
   const normalized = String(value || "").trim().toLowerCase();
   return STATUS_ORDER.includes(normalized) ? normalized : "invited";
+}
+
+function sortExtraPlayers(list) {
+  return [...list].sort((a, b) => {
+    const aOut = canonicalPlayerStatus(a.status) === "out";
+    const bOut = canonicalPlayerStatus(b.status) === "out";
+    if (aOut !== bOut) return aOut ? 1 : -1;
+    return a.name.localeCompare(b.name);
+  });
 }
 
 function setButtonBusy(button, busy) {
@@ -164,6 +173,8 @@ function renderPlayerColumn(holderId, emptyId, list, group, options = {}) {
   list.forEach((player) => {
     const item = document.createElement("p");
     item.className = "player-name";
+    item.dataset.playerId = player.__backendId;
+    if (player.__backendId === state.highlightedPlayerId) item.classList.add("is-highlighted");
     if (options.markOut && canonicalPlayerStatus(player.status) === "out") {
       item.classList.add("player-out");
     }
@@ -227,8 +238,10 @@ function renderViewer() {
   const blueTeam = namedTeam("blue");
   const redPlayers = redTeam ? allPlayers.filter((p) => p.team_id === redTeam.__backendId) : [];
   const bluePlayers = blueTeam ? allPlayers.filter((p) => p.team_id === blueTeam.__backendId) : [];
-  const extraPlayers = allPlayers.filter(
-    (p) => p.team_id !== (redTeam && redTeam.__backendId) && p.team_id !== (blueTeam && blueTeam.__backendId)
+  const extraPlayers = sortExtraPlayers(
+    allPlayers.filter(
+      (p) => p.team_id !== (redTeam && redTeam.__backendId) && p.team_id !== (blueTeam && blueTeam.__backendId)
+    )
   );
   renderPlayerColumn("red-players", "red-empty", redPlayers, "red");
   renderPlayerColumn("blue-players", "blue-empty", bluePlayers, "blue");
@@ -242,6 +255,8 @@ function renderViewer() {
     badge.textContent = count;
     badge.setAttribute("aria-label", count + (count === 1 ? " player" : " players"));
   });
+
+  renderFieldBoard("viewer-field-board");
 }
 
 function setMode(mode) {
@@ -256,7 +271,9 @@ function setMode(mode) {
 async function movePlayer(playerId, teamId) {
   const player = players().find((item) => item.__backendId === playerId);
   if (!player || player.team_id === teamId) return;
-  const result = await window.dataSdk.update({ ...player, team_id: teamId });
+  const updates = { ...player, team_id: teamId };
+  if (player.is_gk) updates.is_gk = false;
+  const result = await window.dataSdk.update(updates);
   if (!result.isOk) showMessage("The player could not be moved. Please try again.", "error");
 }
 
@@ -281,6 +298,8 @@ function applyStatusSelectStyle(select) {
 function addPlayerToBoard(player, holder) {
   const fragment = $("#assignment-player-template").content.cloneNode(true);
   const row = fragment.querySelector(".player-chip");
+  row.dataset.playerId = player.__backendId;
+  if (player.__backendId === state.highlightedPlayerId) row.classList.add("is-highlighted");
   row.querySelector(".chip-name").textContent = player.name;
   row.addEventListener("dragstart", () => {
     state.dragPlayerId = player.__backendId;
@@ -299,6 +318,27 @@ function addPlayerToBoard(player, holder) {
     const result = await window.dataSdk.update({ ...player, status: statusSelect.value });
     if (!result.isOk) showMessage("The player status could not be saved. Please try again.", "error");
   });
+
+  const positionSelect = row.querySelector(".position-select");
+  if (!player.team_id) {
+    positionSelect.classList.add("hidden");
+  } else {
+    POSITION_ORDER.forEach((value) => positionSelect.add(new Option(POSITION_LABELS[value], value)));
+    positionSelect.value = canonicalPosition(player.position);
+    positionSelect.addEventListener("change", async () => {
+      const result = await window.dataSdk.update({ ...player, position: positionSelect.value });
+      if (!result.isOk) showMessage("The player's position could not be saved. Please try again.", "error");
+    });
+  }
+
+  const gkButton = row.querySelector(".gk-toggle");
+  if (!player.team_id) {
+    gkButton.classList.add("hidden");
+  } else {
+    gkButton.setAttribute("aria-pressed", String(Boolean(player.is_gk)));
+    gkButton.classList.toggle("is-active", Boolean(player.is_gk));
+    gkButton.addEventListener("click", () => setGoalkeeper(player, !player.is_gk));
+  }
 
   row.querySelector(".chip-edit").addEventListener("click", () => {
     state.editingPlayerId = player.__backendId;
@@ -336,6 +376,114 @@ function makeTeamCard(team, isExtra = false) {
   return fragment;
 }
 
+const GOAL_POSITION = { red: { x: 50, y: 6 }, blue: { x: 50, y: 94 } };
+const POSITION_ORDER = ["DF", "MF", "FW"];
+const POSITION_LABELS = { DF: "DF", MF: "MF", FW: "FW" };
+
+function canonicalPosition(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  return POSITION_ORDER.includes(normalized) ? normalized : "MF";
+}
+
+// Figures out how wide a line of players needs to spread (and, if the line is
+// crowded, how small the circles need to shrink) so players in the same
+// row never overlap regardless of team size or the board's rendered width.
+function lineLayout(board, total, baseSpreadPercent) {
+  const boardWidth = (board && board.clientWidth) || 300;
+  const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const baseCirclePx = 2.3 * rootPx;
+  const minCirclePx = 1.5 * rootPx;
+  if (total <= 1) return { spreadPercent: baseSpreadPercent, circlePx: baseCirclePx };
+
+  const minGapPx = baseCirclePx * 1.12;
+  const minGapPercent = (minGapPx / boardWidth) * 100;
+  const requiredSpreadPercent = minGapPercent * (total - 1);
+  const spreadPercent = Math.min(92, Math.max(baseSpreadPercent, requiredSpreadPercent));
+
+  const actualGapPx = ((spreadPercent / 100) * boardWidth) / (total - 1);
+  const circlePx = actualGapPx >= minGapPx ? baseCirclePx : Math.max(minCirclePx, actualGapPx / 1.12);
+  return { spreadPercent, circlePx };
+}
+
+function roleFieldPosition(index, total, lineIndex, side, spreadPercent) {
+  const depthFraction = lineIndex / (POSITION_ORDER.length - 1);
+  const xMin = 50 - spreadPercent / 2;
+  const xMax = 50 + spreadPercent / 2;
+  const x = total > 1 ? xMin + (index / (total - 1)) * (xMax - xMin) : 50;
+  const defenseY = side === "red" ? 18 : 82;
+  const attackY = side === "red" ? 45 : 55;
+  const y = defenseY + depthFraction * (attackY - defenseY);
+  return { x, y };
+}
+
+async function setGoalkeeper(player, makeGk) {
+  const teammates = players().filter((p) => p.team_id === player.team_id && p.__backendId !== player.__backendId && p.is_gk);
+  for (const teammate of teammates) {
+    await window.dataSdk.update({ ...teammate, is_gk: false });
+  }
+  const result = await window.dataSdk.update({ ...player, is_gk: makeGk });
+  if (!result.isOk) showMessage("The goalkeeper could not be set. Please try again.", "error");
+}
+
+function setHighlightedPlayer(playerId) {
+  state.highlightedPlayerId = playerId;
+  document.querySelectorAll(".field-circle, .player-chip, .player-name").forEach((el) => {
+    el.classList.toggle("is-highlighted", el.dataset.playerId === playerId);
+  });
+}
+
+function addFieldCircle(boardId, player, side, index, total, lineIndex, spreadPercent, circlePx) {
+  const board = $("#" + boardId);
+  const circle = document.createElement("div");
+  circle.className = "field-circle field-circle-" + side + (player.is_gk ? " is-gk" : "");
+  circle.dataset.playerId = player.__backendId;
+  circle.title = player.name + (player.is_gk ? " (GK)" : " (" + canonicalPosition(player.position) + ")");
+  circle.textContent = player.name.trim().slice(0, 2).toUpperCase();
+  const pos = player.is_gk ? GOAL_POSITION[side] : roleFieldPosition(index, total, lineIndex, side, spreadPercent);
+  circle.style.left = pos.x + "%";
+  circle.style.top = pos.y + "%";
+  if (!player.is_gk && circlePx) {
+    circle.style.width = circlePx + "px";
+    circle.style.height = circlePx + "px";
+    circle.style.marginLeft = -(circlePx / 2) + "px";
+    circle.style.marginTop = -(circlePx / 2) + "px";
+    circle.style.fontSize = Math.max(9, circlePx * 0.3) + "px";
+  }
+  if (player.__backendId === state.highlightedPlayerId) circle.classList.add("is-highlighted");
+  board.appendChild(circle);
+  circle.addEventListener("click", () => {
+    setHighlightedPlayer(player.__backendId === state.highlightedPlayerId ? null : player.__backendId);
+  });
+}
+
+function renderFieldBoard(boardId) {
+  const board = $("#" + boardId);
+  if (!board) return;
+  board.querySelectorAll(".field-circle").forEach((el) => el.remove());
+
+  const redTeam = namedTeam("red");
+  const blueTeam = namedTeam("blue");
+  const allPlayers = players();
+  const redPlayers = redTeam ? allPlayers.filter((p) => p.team_id === redTeam.__backendId) : [];
+  const bluePlayers = blueTeam ? allPlayers.filter((p) => p.team_id === blueTeam.__backendId) : [];
+
+  [
+    ["red", redPlayers],
+    ["blue", bluePlayers],
+  ].forEach(([side, teamPlayers]) => {
+    const gk = teamPlayers.find((p) => p.is_gk);
+    if (gk) addFieldCircle(boardId, gk, side, 0, 1, 0, 0, null);
+    POSITION_ORDER.forEach((role, lineIndex) => {
+      const group = teamPlayers.filter((p) => !p.is_gk && canonicalPosition(p.position) === role);
+      if (!group.length) return;
+      const depthFraction = lineIndex / (POSITION_ORDER.length - 1);
+      const baseSpread = 80 - depthFraction * 50;
+      const { spreadPercent, circlePx } = lineLayout(board, group.length, baseSpread);
+      group.forEach((player, index) => addFieldCircle(boardId, player, side, index, group.length, lineIndex, spreadPercent, circlePx));
+    });
+  });
+}
+
 function renderManagement() {
   $("#players-empty").classList.toggle("hidden", players().length > 0);
 
@@ -350,7 +498,9 @@ function renderManagement() {
   const extraCard = makeTeamCard(null, true);
   board.appendChild(extraCard);
 
-  const extraPlayers = players().filter((player) => !player.team_id || !teams().some((team) => team.__backendId === player.team_id));
+  const extraPlayers = sortExtraPlayers(
+    players().filter((player) => !player.team_id || !teams().some((team) => team.__backendId === player.team_id))
+  );
   const extraHolder = extraCard.querySelector(".drop-zone");
   extraCard.querySelector(".count-badge").textContent = extraPlayers.length;
   extraCard.querySelector(".count-badge").setAttribute("aria-label", extraPlayers.length + (extraPlayers.length === 1 ? " player" : " players"));
@@ -365,6 +515,7 @@ function renderManagement() {
     teamPlayers.forEach((player) => addPlayerToBoard(player, holder));
   });
 
+  renderFieldBoard("field-board");
   lucide.createIcons();
 }
 
@@ -483,7 +634,7 @@ const dataHandler = {
 
 async function initApp() {
   populateSchedulePickers();
-  setViewMode("roster");
+  setViewMode("teams");
   lucide.createIcons();
   const result = await window.dataSdk.init(dataHandler);
   if (!result.isOk) showMessage("Your saved schedule could not be loaded. Please refresh and try again.", "error");
