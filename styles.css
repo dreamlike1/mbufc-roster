@@ -671,8 +671,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .field-board {
   position: relative;
   width: 100%;
+  max-width: 360px;
   aspect-ratio: 3 / 4;
-  margin-top: 1.1rem;
+  margin: 1.1rem auto 0;
   background: linear-gradient(180deg, #2f9e52, #227a3d);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
