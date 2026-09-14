@@ -30,6 +30,10 @@
       name: row.name,
       team_id: row.team_id || "",
       status: row.status || "invited",
+      pos_x: row.pos_x,
+      pos_y: row.pos_y,
+      is_gk: Boolean(row.is_gk),
+      position: row.position || "MF",
     }));
     return [...scheduleRecords, ...teamRecords, ...playerRecords];
   }
@@ -63,7 +67,16 @@
     if (record.type === "team") {
       return { name: record.name };
     }
-    return { name: record.name, team_id: record.team_id || null, status: record.status || "invited" };
+    const row = {
+      name: record.name,
+      team_id: record.team_id || null,
+      status: record.status || "invited",
+      is_gk: Boolean(record.is_gk),
+      position: ["DF", "MF", "FW"].includes(record.position) ? record.position : "MF",
+    };
+    if (record.pos_x != null) row.pos_x = record.pos_x;
+    if (record.pos_y != null) row.pos_y = record.pos_y;
+    return row;
   }
 
   window.dataSdk = {
